@@ -33,18 +33,16 @@ app.post("/api/v1/signup", (req, res) => __awaiter(void 0, void 0, void 0, funct
             name: name,
             username: username,
             email: email,
-            password: password
+            password: password,
         });
         const foundMyUser = yield mongodb_1.UserModel.findOne({
             email,
-            password
+            password,
         });
         console.log("foundMyUser :", foundMyUser);
         const token = jsonwebtoken_1.default.sign({
-            id: foundMyUser === null || foundMyUser === void 0 ? void 0 : foundMyUser._id
+            id: foundMyUser === null || foundMyUser === void 0 ? void 0 : foundMyUser._id,
         }, config_1.SECRET_KEY);
-        console.log({ token: token });
-        // localStorage.setItem("token",token)
         res.status(201).json({ message: "User signup-up successfully !", token });
     }
     catch (e) {
@@ -55,16 +53,20 @@ app.post("/api/v1/signin", (req, res) => __awaiter(void 0, void 0, void 0, funct
     const { email, password } = req.body;
     const userAlreadyExist = yield mongodb_1.UserModel.findOne({
         email,
-        password
+        password,
     });
     if (userAlreadyExist) {
         const token = jsonwebtoken_1.default.sign({
-            id: userAlreadyExist._id
+            id: userAlreadyExist._id,
         }, config_1.SECRET_KEY);
         res.json({ token: token });
     }
     else {
-        res.status(403).json({ message: "Incorrect Credentials or user not found !" });
+        res.status(403).json({
+            message: "Incorrect Credentials or user not found !",
+            //@ts-ignore
+            userId: req.userId,
+        });
     }
 }));
 app.post("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -84,7 +86,7 @@ app.get("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(
     //@ts-ignore
     const userId = req.userId;
     const content = yield mongodb_1.ContentModel.find({
-        userId: userId
+        userId: userId,
     }).populate("userId", "username");
     res.json(content); // {content} or content ?
 }));
@@ -94,25 +96,29 @@ app.put("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(
     const userId = req.userId;
     const updatedContent = yield mongodb_1.ContentModel.updateOne({
         contentId,
-        userId
+        userId,
     }, {
         title,
         link,
         tags,
         userId,
-        type
+        type,
     });
     res.json({ message: "Updated successfully", updatedContent });
 }));
 app.delete("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const contentId = req.body.contentId;
-    //@ts-ignore
-    const userId = req.userId;
-    yield mongodb_1.ContentModel.deleteOne({
-        contentId,
-        userId
-    });
-    res.json({ message: "deleted !" });
+    try {
+        const deletedContent = yield mongodb_1.ContentModel.findByIdAndDelete({
+            _id: contentId
+            // //@ts-ignore
+            // userId: req.userId,
+        });
+        res.json({ message: "deleted !", deletedContent });
+    }
+    catch (e) {
+        res.status(411).json({ message: "Failed to delete ", });
+    }
 }));
 //generate public share link hash
 app.post("/api/v1/wow/share", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -120,12 +126,12 @@ app.post("/api/v1/wow/share", middleware_1.userMiddleware, (req, res) => __await
     if (share) {
         const linkAlreadyExist = yield mongodb_1.linkModel.findOne({
             //@ts-ignore
-            userId: req.useId
+            userId: req.useId,
         });
         if (linkAlreadyExist) {
             res.json({
                 // hash: generatedHash,
-                messgae: "Link/hash already exist :" + linkAlreadyExist.hash
+                messgae: "Link/hash already exist :" + linkAlreadyExist.hash,
             });
             return;
         }
@@ -133,17 +139,17 @@ app.post("/api/v1/wow/share", middleware_1.userMiddleware, (req, res) => __await
         const createdLink = yield mongodb_1.linkModel.create({
             hash: generatedHash,
             //@ts-ignore
-            userId: req.userId
+            userId: req.userId,
         });
         res.json({
             hash: generatedHash,
-            createdLink: createdLink
+            createdLink: createdLink,
         });
     }
     else {
         yield mongodb_1.linkModel.deleteOne({
             //@ts-ignore
-            userId: req.userId
+            userId: req.userId,
         });
         res.json({ message: "hash to share url hash REMOVED !" });
     }
@@ -153,21 +159,23 @@ app.get("/api/v1/wow/:shareLink", (req, res) => __awaiter(void 0, void 0, void 0
     const link = yield mongodb_1.linkModel.findOne({ hash: hashFromParams });
     if (link) {
         const content = yield mongodb_1.ContentModel.find({
-            userId: link.userId
+            userId: link.userId,
         });
         const user = yield mongodb_1.UserModel.findOne({
-            _id: link.userId
+            _id: link.userId,
         });
         if (!user) {
             res.status(411).json({ message: "User not-found inside req.userId" });
         }
         res.json({
             User: user,
-            Content: content
+            Content: content,
         });
     }
     else {
-        res.status(411).json({ message: "Incorrect hash, or link might expired !" });
+        res
+            .status(411)
+            .json({ message: "Incorrect hash, or link might expired !" });
     }
 }));
 app.listen(3000, () => {

@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.linkModel = exports.ContentModel = exports.UserModel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const connectArgs = {
-    uri: "mongodb+srv://ranjansameer89:QIU3ZTsrPa5bVSAP@wowcluster.a2caw.mongodb.net/",
+    uri: "mongodb+srv://ranjansameer89:QIU3ZTsrPa5bVSAP@wowcluster.a2caw.mongodb.net/wow",
 };
 mongoose_1.default.connect(connectArgs.uri);
 const userSchema = new mongoose_1.Schema({
