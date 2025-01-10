@@ -16,11 +16,10 @@ app.get("/me", (req, res) => {
 
 app.post("/api/v1/signup", async (req, res) => {
   //Todo:  zod, jwt, pass hashing
-  const { name, username, password, email } = req.body;
+  const { name, password, email } = req.body;
   try {
     await UserModel.create({
       name: name,
-      username: username,
       email: email,
       password: password,
     });
@@ -38,7 +37,7 @@ app.post("/api/v1/signup", async (req, res) => {
 
     res.status(201).json({ message: "User signup-up successfully !", token });
   } catch (e) {
-    res.status(411).json({ message: "Username already exist, Failed !" });
+    res.status(411).json({ message: "User already exist, Failed !" });
   }
 });
 
@@ -70,7 +69,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
   console.log("link :", link);
   await ContentModel.create({
     link,
-    tags: [],
+    tags,
     title,
     type,
     //@ts-ignore
@@ -84,7 +83,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
   const userId = req.userId;
   const content = await ContentModel.find({
     userId: userId,
-  }).populate("userId", "username");
+  }).populate("userId");
   res.json(content); // {content} or content ?
 });
 
