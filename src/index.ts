@@ -65,7 +65,8 @@ app.post("/api/v1/signin", async (req, res) => {
 });
 
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
-  const { link, tags, title, type } = req.body;
+  const { link, tags, title, type, createdAt } = req.body;
+  console.log("addedContent :",{ link, tags, title, type })
   console.log("link :", link);
   await ContentModel.create({
     link,
@@ -74,6 +75,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     type,
     //@ts-ignore
     userId: req.userId,
+    createdAt
   });
   res.json({ message: "Content added !" });
 });
@@ -84,7 +86,7 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
   const content = await ContentModel.find({
     userId: userId,
   }).populate("userId");
-  res.json(content); // {content} or content ?
+  res.json({content}); // {content} or content ?
 });
 
 app.put("/api/v1/content", userMiddleware, async (req, res) => {
@@ -108,8 +110,8 @@ app.put("/api/v1/content", userMiddleware, async (req, res) => {
   res.json({ message: "Updated successfully", updatedContent });
 });
 
-app.delete("/api/v1/content", userMiddleware, async (req, res) => {
-  const contentId = req.body.contentId;
+app.delete("/api/v1/content/:contenId", userMiddleware, async (req, res) => {
+  const contentId = req.params.contentId;
   try {
     const deletedContent = await ContentModel.deleteOne({
       _id: contentId,
