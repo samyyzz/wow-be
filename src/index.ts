@@ -65,8 +65,8 @@ app.post("/api/v1/signin", async (req, res) => {
 });
 
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
-  const { link, tags, title, type, createdAt } = req.body;
-  console.log("addedContent :",{ link, tags, title, type })
+  const { link, tags, title, type, createdAt, favourite } = req.body;
+  console.log("addedContent :",{ link, tags, title, type, createdAt, favourite})
   console.log("link :", link);
   await ContentModel.create({
     link,
@@ -75,6 +75,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     type,
     //@ts-ignore
     userId: req.userId,
+    favourite,
     createdAt
   });
   res.json({ message: "Content added !" });
@@ -90,13 +91,13 @@ app.get("/api/v1/content", userMiddleware, async (req, res) => {
 });
 
 app.put("/api/v1/content", userMiddleware, async (req, res) => {
-  const { title, link, tags, contentId, type } = req.body;
+  const { title, link, tags, contentId, type, favourite, createdAt } = req.body;
   //@ts-ignore
   const userId = req.userId;
 
   const updatedContent = await ContentModel.updateOne(
     {
-      contentId,
+      _id: contentId,
       userId,
     },
     {
@@ -105,6 +106,8 @@ app.put("/api/v1/content", userMiddleware, async (req, res) => {
       tags,
       userId,
       type,
+      favourite,
+      createdAt
     }
   );
   res.json({ message: "Updated successfully", updatedContent });
