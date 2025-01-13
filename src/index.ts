@@ -64,70 +64,125 @@ app.post("/api/v1/signin", async (req, res) => {
   }
 });
 
+//POST: Add User Content
 app.post("/api/v1/content", userMiddleware, async (req, res) => {
-  const { link, tags, title, type, createdAt, favourite } = req.body;
-  console.log("addedContent :",{ link, tags, title, type, createdAt, favourite})
-  console.log("link :", link);
-  await ContentModel.create({
+  const {
+    type,
+    title,
     link,
     tags,
-    title,
-    type,
-    //@ts-ignore
-    userId: req.userId,
     favourite,
-    createdAt
+    disableCard,
+    createdAt,
+    updatedAt,
+  } = req.body;
+
+  //@ts-ignore
+  const userId = req.userId;
+
+  if (!userId) {
+    res.status(404).json({ messag: "User is not authneticated" });
+  }
+  console.log("addedContent :", {
+    type,
+    title,
+    link,
+    tags,
+    favourite,
+    disableCard,
+    createdAt,
+    updatedAt,
   });
-  res.json({ message: "Content added !" });
-});
-
-app.get("/api/v1/content", userMiddleware, async (req, res) => {
-  //@ts-ignore
-  const userId = req.userId;
-  const content = await ContentModel.find({
-    userId: userId,
-  }).populate("userId");
-  res.json({content}); // {content} or content ?
-});
-
-app.put("/api/v1/content", userMiddleware, async (req, res) => {
-  const { title, link, tags, contentId, type, favourite, createdAt } = req.body;
-  //@ts-ignore
-  const userId = req.userId;
-
-  const updatedContent = await ContentModel.updateOne(
-    {
-      _id: contentId,
-      userId,
-    },
-    {
+  try {
+    await ContentModel.create({
+      type,
       title,
       link,
       tags,
-      userId,
-      type,
       favourite,
-      createdAt
-    }
-  );
-  res.json({ message: "Updated successfully", updatedContent });
-});
-
-app.delete("/api/v1/content/:contenId", userMiddleware, async (req, res) => {
-  const contentId = req.params.contentId;
-  try {
-    const deletedContent = await ContentModel.deleteOne({
-      _id: contentId,
-      //@ts-ignore
-      userId: req.userId,
+      disableCard,
+      createdAt,
+      updatedAt,
+      userId,
     });
-    res.json({ message: "deleted !", deletedContent });
-  } catch (e) {
-    res.status(411).json({ message: "Failed to delete " });
+    res.json({ message: "Content added !" });
+  } catch (error) {
+    res.status(411).json({ message: "Failed to add content !" });
   }
 });
 
-//generate public share link hash
+//GET : fetch all Contents of a User
+app.get("/api/v1/content", userMiddleware, async (req, res) => {
+  //@ts-ignore
+  const userId = req.userId;
+  if (!userId) {
+    res.status(404).json({ messag: "User is not authneticated" });
+  }
+  try {
+    const content = await ContentModel.find({
+      userId: userId,
+    }).populate("userId", "name");
+    res.json({ content });
+  } catch (error) {
+    res.status(411).json({ message: "Failed to fetch Content Data" });
+  }
+});
+
+//PUT: disable Content card on clientdeletionOfCard
+app.put("/api/v1/content", userMiddleware, async (req, res) => {
+  const contentId = req.body.contentId;
+  const disable = req.body.disableCard;
+
+  ///@ts-ignore
+  const userId = req.userId;
+  if (!userId) {
+    res.status(404).json({ messag: "User is not authneticated" });
+  }
+  try {
+    const disblededCard = await ContentModel.updateOne(
+      {
+        _id: contentId,
+        userId: userId,
+      },
+      {
+        $set: {
+          disableCard: disable,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+    res.json({ message: "Card Deleted !", deletedCard: disblededCard });
+  } catch (error) {}
+});
+
+//PUT: Add/remove fav when clienClickOnLikeBtn
+app.put("/api/v1/content/:contentId", userMiddleware, async (req, res) => {
+  const contentId = req.body.contentId;
+  const fav = req.body.favourite;
+  ///@ts-ignore
+  const userId = req.userId;
+  try {
+    const favUpdatedCard = await ContentModel.updateOne(
+      {
+        _id: contentId,
+        userId: userId,
+      },
+      {
+        $set: {
+          favourite: fav,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+    res.json({ message: "Card Deleted !", UpdatedCard: favUpdatedCard });
+  } catch (error) {}
+});
+
+//POST: generate public share link hash
 app.post("/api/v1/wow/share", userMiddleware, async (req, res) => {
   const share = req.body.share;
   if (share) {
