@@ -6,28 +6,17 @@ import { userMiddleware } from "./auth/middleware";
 import { hashMyPassword, shareThisHash } from "./utils";
 import cors from "cors";
 import z from "zod";
+import bcrypt from "bcrypt";
+import {
+  ContentZodSchema,
+  disableContentZodSchema,
+  favContentZodSchema,
+  UserZodSchema,
+} from "./zod/zodSchema";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
-
-const UserZodSchema = z.object({
-  name: z.string().min(3).max(20),
-  email: z.string().email().max(20),
-  password: z.string().min(3).max(20),
-});
-
-const ContentZodSchema = z.object({
-  type: z.string(),
-  title: z.string(),
-  link: z.string(),
-  tags: z.string().array(),
-  favourite: z.boolean(),
-  disableCard: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  userId: z.string(),
-})
 
 app.get("/", (req, res) => {
   res.json({ message: "Server working. OK !" });
@@ -43,11 +32,13 @@ app.post("/api/v1/signup", async (req, res) => {
         .status(401)
         .send({ message: "User sent wrong body format, failed to parse !" });
     }
+    const hashedPass = await hashMyPassword(password);
+    console.log(name, email, password, hashedPass);
     try {
       await UserModel.create({
         name: name,
         email: email,
-        password: hashMyPassword(password), //might throw error as generating pass while adding to db
+        password: hashedPass, //might throw error as generating pass while adding to db
       });
       const userInDb = await UserModel.findOne({ email });
       const token = jwt.sign(
@@ -71,28 +62,36 @@ app.post("/api/v1/signin", async (req, res) => {
   const { password, email } = req.body;
   if (email && password) {
     const parsedBody = UserZodSchema.safeParse(req.body);
+    console.log("parsedBody :", parsedBody, parsedBody.error);
     if (!parsedBody.success) {
-      res.status(401).send({ message: "User sent wrong body format, failed to parse !" });
+      res
+        .status(401)
+        .send({ message: "User sent wrong body format, failed to parse !" });
     }
     try {
       const userInDb = await UserModel.findOne({ email });
       console.log("userInDb :", userInDb);
       const generatedHash = await hashMyPassword(password);
+      console.log("generatedHash :", generatedHash);
       if (!generatedHash) {
         res.status(411).json({ message: "Failed to generate hash !" });
       }
-        if (userInDb?.password === generatedHash) {
-          const token = jwt.sign(
-            {
-              id: userInDb?._id,
-            },
-            SECRET_KEY
-          );
-          res.status(201).json({ message: "User login successfully !", token });
-        } else {
-          res.status(411).json({ message: "Invalid Password, hash mismatched !" });
-        }
-      }catch (error) {
+      const passwordHashmatched = await bcrypt.compare(password, generatedHash);
+      console.log("passwordHashmatched :", passwordHashmatched);
+
+      if (!passwordHashmatched) {
+        res
+          .status(411)
+          .json({ message: "Invalid Password, hash mismatched !" });
+      }
+      const token = jwt.sign(
+        {
+          id: userInDb?._id,
+        },
+        SECRET_KEY
+      );
+      res.status(201).json({ message: "User login successfully !", token });
+    } catch (error) {
       res.status(411).json({ message: "User not found, Failed !", error });
     }
   } else {
@@ -119,22 +118,25 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
   if (!userId) {
     res.status(404).json({ messag: "User is not authneticated" });
   }
-  console.log("addedContent :", {
-    type,
-    title,
-    link,
-    tags,
-    favourite,
-    disableCard,
-    createdAt,
-    updatedAt,
-  });
+  // console.log("addedContent :", {
+  //   type,
+  //   title,
+  //   link,
+  //   tags,
+  //   favourite,
+  //   disableCard,
+  //   createdAt,
+  //   updatedAt,
+  //   userId
+  // });
 
   //might fail after adding zodSchema // check ContentZodSchema validation
-  const parsedContent = ContentZodSchema.safeParse(req.body) 
-  
-  if(!parsedContent.success){
-    res.status(401).json({message: "Failed to parse req body"})
+  const parsedContent = ContentZodSchema.safeParse({ ...req.body, userId });
+  console.log(parsedContent.data);
+
+  if (!parsedContent.success) {
+    console.log(" parsedContent.error :", parsedContent.error);
+    res.status(401).json({ message: "Failed to parse req body" });
   }
 
   try {
@@ -151,7 +153,7 @@ app.post("/api/v1/content", userMiddleware, async (req, res) => {
     });
     res.json({ message: "Content added !" });
   } catch (error) {
-    res.status(411).json({ message: "Failed to add content !" });
+    res.status(411).json({ message: "Failed to add content !", error });
   }
 });
 
@@ -177,8 +179,8 @@ app.put("/api/v1/content", userMiddleware, async (req, res) => {
   const contentId = req.body.contentId;
   const disable = req.body.disableCard;
 
-  const parsedBody = ContentZodSchema.safeParse({contentId,disable})
-  if(!parsedBody.success){
+  const parsedBody = disableContentZodSchema.safeParse({ contentId, disable });
+  if (!parsedBody.success) {
     res.status(404).json({ messag: "Failed to validate, incorrect format" });
   }
 
@@ -213,8 +215,8 @@ app.put("/api/v1/content/:contentId", userMiddleware, async (req, res) => {
   const contentId = req.body.contentId;
   const fav = req.body.favourite;
 
-  const parsedBody = ContentZodSchema.safeParse({contentId, fav})
-  if(!parsedBody.success){
+  const parsedBody = favContentZodSchema.safeParse({ contentId, fav });
+  if (!parsedBody.success) {
     res.status(404).json({ messag: "Failed to validate, incorrect format" });
   }
 
@@ -244,13 +246,13 @@ app.put("/api/v1/content/:contentId", userMiddleware, async (req, res) => {
 //POST: generate public share link hash
 app.post("/api/v1/wow/share", userMiddleware, async (req, res) => {
   const share = req.body.share;
-  
-  const parsedBody = ContentZodSchema.safeParse({share})
-  if(!parsedBody.success){
-    res.status(404).json({ messag: "Failed to validate, incorrect format" });
+
+  const parsedBody = share as boolean;
+  if (typeof parsedBody !== share) {
+    res.status(404).json({ messag: "share/req.body is not of type boolean" });
   }
 
-  if (share) {
+  if (parsedBody) {
     const linkAlreadyExist = await linkModel.findOne({
       //@ts-ignore
       userId: req.useId,
@@ -281,6 +283,7 @@ app.post("/api/v1/wow/share", userMiddleware, async (req, res) => {
   }
 });
 
+//GET: use this generated-link to access someones else card
 app.get("/api/v1/wow/:shareLink", async (req, res) => {
   const hashFromParams = req.params.shareLink;
   const link = await linkModel.findOne({ hash: hashFromParams });
