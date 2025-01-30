@@ -1,11 +1,4 @@
-import mongoose, { model, Schema, Types } from "mongoose";
-import { boolean, string } from "zod";
-
-const connectArgs = {
-  uri: "mongodb+srv://ranjansameer89:QIU3ZTsrPa5bVSAP@wowcluster.a2caw.mongodb.net/wow",
-};
-
-mongoose.connect(connectArgs.uri);
+import mongoose, { model, Schema } from "mongoose";
 
 const userSchema = new Schema({
   name: { type: String },
@@ -47,43 +40,7 @@ const linkSchema = new Schema({
   },
 });
 
-// const favSchema = new Schema({
-//   userId: {
-//     type: mongoose.Types.ObjectId,
-//     ref: "User",
-//     require: true,
-//     unique: true,
-//   },
-//   contentId: [
-//     {
-//       type: mongoose.Types.ObjectId,
-//       ref: "Content",
-//       require: true,
-//       unique: true,
-//     },
-//   ], //favourite = true
-// });
-
-// const dustbinSchema = new Schema({
-//   userId: {
-//     type: mongoose.Types.ObjectId,
-//     ref: "User",
-//     require: true,
-//     unique: true,
-//   },
-//   contentId: [
-//     {
-//       type: mongoose.Types.ObjectId,
-//       ref: "Content",
-//       require: true,
-//       unique: true,
-//     },
-//   ], //disableCard = true
-// });
-
 export const UserModel = model("User", userSchema);
 export const ContentModel = model("Content", contentSchema);
 export const linkModel = model("Link", linkSchema);
 export const TagModel = model("Tags", tagSchema);
-// export const FavouriteModel = model("Tags", favSchema);
-// export const DustbinModel = model("Tags", dustbinSchema);
