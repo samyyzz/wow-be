@@ -19,11 +19,11 @@ export const ContentZodSchema = z.object({
 });
 
 export const disableContentZodSchema = z.object({
-  contentId: z.boolean(),
+  contentId: z.string(),
   disable: z.boolean(),
 })
 
 export const favContentZodSchema = z.object({
-  contentId: z.boolean(),
+  contentId: z.string(),
   fav: z.boolean(),
 })
