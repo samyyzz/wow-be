@@ -9,33 +9,55 @@ import {
   ContentZodSchema,
   disableContentZodSchema,
   favContentZodSchema,
-  UserZodSchema,
+  UserSignupZodSchema,
+  UserLoginZodSchema,
 } from "../zod/zodSchema";
 
 export const userRouter = express.Router();
 
 //POST : Signup
+userRouter.post("/create", async (req, res) => {
+  const { name, password, email } = req.body;
+  console.log(req.body)
+  const newUser = await UserModel.create({
+    name: name,
+    email: email,
+    password: password, //might throw error as generating pass while adding to db
+  });
+  const token = jwt.sign(
+    {
+      id: newUser?._id,
+    },
+    SECRET_KEY
+  );
+
+  res
+    .status(201)
+    .json({ message: "User signup-up successfully !", newUser, token });
+});
+
 userRouter.post("/signup", async (req, res) => {
   const { name, password, email } = req.body;
   if (name && email && password) {
-    const parsedBody = UserZodSchema.safeParse(req.body);
+    const parsedBody = UserSignupZodSchema.safeParse(req.body);
     if (!parsedBody.success) {
       res
         .status(401)
         .send({ message: "User sent wrong body format, failed to parse !" });
     }
     const hashedPass = await hashMyPassword(password);
-    //   console.log(name, email, password, hashedPass);
+    console.log(name, email, password, hashedPass);
     try {
-      await UserModel.create({
+      const newUser = await UserModel.create({
         name: name,
         email: email,
         password: hashedPass, //might throw error as generating pass while adding to db
       });
-      const userInDb = await UserModel.findOne({ email });
+      if (!newUser) return console.log("newUser :", newUser);
+      // const userInDb = await UserModel.findOne({ email });
       const token = jwt.sign(
         {
-          id: userInDb?._id,
+          id: newUser?._id,
         },
         SECRET_KEY
       );
@@ -53,7 +75,7 @@ userRouter.post("/signup", async (req, res) => {
 userRouter.post("/signin", async (req, res) => {
   const { password, email } = req.body;
   if (email && password) {
-    const parsedBody = UserZodSchema.safeParse(req.body);
+    const parsedBody = UserLoginZodSchema.safeParse(req.body);
     console.log("parsedBody :", parsedBody, parsedBody.error);
     if (!parsedBody.success) {
       res
