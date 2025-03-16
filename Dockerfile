@@ -13,6 +13,14 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
+# Receive build arguments from docker-compose.yml
+ARG SECRET_KEY
+ARG MONGO_CONNECTION_URL
+
+# Set environment variables using build arguments
+ENV SECRET_KEY=$SECRET_KEY 
+ENV MONGO_CONNECTION_URL=$MONGO_CONNECTION_URL
+
 # Build the TypeScript code
 RUN npm run build
 

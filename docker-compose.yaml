@@ -1,0 +1,22 @@
+services:
+  mongodb:
+    container_name: wow-be-Container
+    image: mongo
+    ports:
+      - 27017:27017
+
+  wow-be:
+    container_name: wow-be
+    build:
+      network: host
+      context: ./
+      dockerfile: Dockerfile
+      args:
+        - MONGO_CONNECTION_URL=${MONGO_CONNECTION_URL}
+        - SECRET_KEY=${SECRET_KEY}
+    env_file:
+      - .env
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongodb
